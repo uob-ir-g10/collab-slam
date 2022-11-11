@@ -66,5 +66,6 @@ floorplan
 )
 
 # throw in a robot
-pioneer( pose [ 0 0 0 0 ] name "robot" color "blue")
+pioneer( pose [ 0 0 0 0 ] name "robot0" color "blue")
+pioneer( pose [ 3 0 0 0 ] name "robot1" color "green")
 #block( pose [ -24.269 48.001 0 180.000 ] color "red")
