@@ -1,7 +1,7 @@
 # UoB IR Group 10 Project
 
 Currently starts up two pioneers (using modified `meeting.world`), and runs gmapping on one of them. A custom rviz config file is used for visualization, 
-and you can setup the project with `roslaunch socspioneer colabslam.launch`
+and you can setup the project with `roslaunch socspioneer collabslam.launch`
 
 Robot_0 can be controlled using `roslaunch socspioneer keyboard_teleop.launch`, see `keyboard_teleop.launch` to see how to use `<remap ... />` to make it work
 with multiple robots.

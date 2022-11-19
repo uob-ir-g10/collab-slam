@@ -14,4 +14,7 @@
         <!-- <remap from="map" to="gmapping/map0" />
         <remap from="map_metadata" to="gmapping/metadata0" /> -->
     </node>
+
+    <!-- start robotDetectionNode -->
+    <node name="robotDetector" pkg="socspioneer" type="robotDetectNode.py"/>
 </launch>
