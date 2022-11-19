@@ -4,7 +4,6 @@
 This node listens to:
     * scans published to `/robot_i/base_scan`
     * base truth poses from `/robot_i/base_pose_ground_truth`
-    * a ground truth map from `map` 
 And publishes the poses of detected robots to `/robot_i/detected_robots`, 
 that are in the laser scan range everytime robot_i executes a scan
 """
@@ -14,7 +13,6 @@ from geometry_msgs.msg import PoseArray
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid, Odometry
 import math
-import sys
 
 class RobotDetectionNode(object):
     def __init__(self, num_robots):
@@ -29,19 +27,6 @@ class RobotDetectionNode(object):
                 f"/robot_{i}/base_pose_ground_truth", Odometry, self._ground_truth_pose_callback, i)
             self.robot_poses.append(None)
 
-        rospy.loginfo("Waiting for a map... (run `rosrun map_server map_server <mapname>`)")
-        try:
-            occupancy_map = rospy.wait_for_message("/map", OccupancyGrid, 20)
-        except:
-            rospy.logerr("Problem getting a map. Check that you have a map_server"
-                     " running: rosrun map_server map_server <mapname> " )
-            sys.exit(1)
-        rospy.loginfo("Map received. %d X %d, %f px/m." %
-                      (occupancy_map.info.width, occupancy_map.info.height,
-                       occupancy_map.info.resolution))
-        self.ROWS = occupancy_map.info.height
-        self.COLUMNS = occupancy_map.info.width
-        self.RESOLUTION = occupancy_map.info.resolution
 
     def _ground_truth_pose_callback(self, odom, i):
         pos = odom.pose.pose
@@ -79,7 +64,6 @@ class RobotDetectionNode(object):
                 detected_bots.poses.append(other)
         
         # publish detected bots to right topic
-        rospy.loginfo(detected_bots)
         self._detected_robot_publishers[robot_num].publish(detected_bots)
 
 def getHeading(q):
