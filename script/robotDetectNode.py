@@ -9,13 +9,17 @@ that are in the laser scan range everytime robot_i executes a scan
 """
 
 import rospy
-from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import PoseArray, TransformStamped
 from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import OccupancyGrid, Odometry
+from nav_msgs.msg import Odometry
 import math
+import tf2_ros
+import tf_conversions
 
 class RobotDetectionNode(object):
     def __init__(self, num_robots):
+        self.tf2_br = tf2_ros.TransformBroadcaster()
+
         self.robot_poses = []
         self._detected_robot_publishers = []
         for i in range(num_robots):
@@ -34,15 +38,15 @@ class RobotDetectionNode(object):
     
     def _laser_callback(self, scan, robot_num):
         """
-        Laser received. Store a ref to the latest scan. If robot has moved
-        much, republish the latest pose to update RViz
+        Laser received. Check if any other robots are within this robot's view cone,
+        and publish it to the corresponding topic.
         """
-        self._latest_scan = scan
         self_pos = self.robot_poses[robot_num]
+        transforms = []
         detected_bots = PoseArray()
 
-        for other in self.robot_poses:
-            if other == self_pos:
+        for i, other in enumerate(self.robot_poses):
+            if i == robot_num:
                 continue
             vectorTo = (other.position.x - self_pos.position.x, other.position.y - self_pos.position.y)
 
@@ -62,9 +66,27 @@ class RobotDetectionNode(object):
             scanDistance = scan.ranges[int((angleTo - scan.angle_min) // scan.angle_increment)]
             if distanceTo < scanDistance and distanceTo < scan.range_max:
                 detected_bots.poses.append(other)
-        
+
+                # broadcast a transform from this robot's base_link toward the other robot it sees
+                t = TransformStamped()
+                t.header.stamp = rospy.Time.now()
+                t.header.frame_id = f"robot_{robot_num}/base_link"
+                t.child_frame_id = f"robot_{i}"
+                t.transform.translation.x = distanceTo * math.cos(angleTo) 
+                t.transform.translation.y = distanceTo * math.sin(angleTo) 
+                t.transform.translation.z = 0.0
+                q = tf_conversions.transformations.quaternion_from_euler(0, 0, 0)
+                t.transform.rotation.x = q[0]
+                t.transform.rotation.y = q[1]
+                t.transform.rotation.z = q[2]
+                t.transform.rotation.w = q[3]
+                transforms.append(t)
+
         # publish detected bots to right topic
         self._detected_robot_publishers[robot_num].publish(detected_bots)
+
+        # broadcast transforms
+        self.tf2_br.sendTransform(transforms)
 
 def getHeading(q):
     """
