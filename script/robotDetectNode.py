@@ -42,11 +42,13 @@ class RobotDetectionNode(object):
         and publish it to the corresponding topic.
         """
         self_pos = self.robot_poses[robot_num]
+        if self_pos == None:
+            return 
         transforms = []
         detected_bots = PoseArray()
 
         for i, other in enumerate(self.robot_poses):
-            if i == robot_num:
+            if i == robot_num or other == None:
                 continue
             vectorTo = (other.position.x - self_pos.position.x, other.position.y - self_pos.position.y)
 
