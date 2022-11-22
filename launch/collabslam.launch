@@ -6,15 +6,13 @@
     <node name="stage" pkg="stage_ros" type="stageros" args="$(find socspioneer)/data/meeting.world"/>
 
     <!-- start slam on robot_0, the name coming from stageros's meeting.world -->
-    <node name="slam" pkg="gmapping" type="slam_gmapping" args="scan:=robot0/base_scan base_link:=robot_0/odom">
-        <remap from="scan" to="/robot_0/base_scan" />
-        <param name="base_frame" value="/robot_0/base_link" />
-        <param name="odom_frame" value="/robot_0/odom" />
-        <param name="transform_publish_period" value="0.08"/>
-        <!-- <remap from="map" to="gmapping/map0" />
-        <remap from="map_metadata" to="gmapping/metadata0" /> -->
-    </node>
+    <include file="$(find socspioneer)/launch/slam.launch">
+        <arg name="robot_name" value="robot_0" />
+    </include>
+    <include file="$(find socspioneer)/launch/slam.launch">
+        <arg name="robot_name" value="robot_1" />
+    </include>
 
     <!-- start robotDetectionNode -->
-    <node name="robotDetector" pkg="socspioneer" type="robotDetectNode.py"/>
+    <node name="robot_detector" pkg="socspioneer" type="robotDetectNode.py"/>
 </launch>
