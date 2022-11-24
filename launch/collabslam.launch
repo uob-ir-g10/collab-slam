@@ -19,6 +19,6 @@
         <param name="known_init_poses" value="false" />
     </node>
 
-    <!-- start robotDetectionNode -->
-    <node name="robot_detector" pkg="socspioneer" type="robotDetectNode.py"/>
+    <!-- start game -->
+    <node name="game_manager" pkg="socspioneer" type="gameManager.py"/>
 </launch>
