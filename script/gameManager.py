@@ -20,12 +20,15 @@ import tf2_ros
 import tf_conversions
 from visualization_msgs.msg import Marker
 
-# add cooldonw to firing
-# add duration limit to rviz marker
 
 class Tank(object):
+    next_id = 0
+    FIRE_COOLDOWN_SECS = 5
+
     def __init__(self, namespace, can_fire = True):
         self.namespace = namespace
+        self.id = Tank.next_id
+        Tank.next_id += 1
         self.can_fire = can_fire
         self.health = 100
 
@@ -48,6 +51,14 @@ class Tank(object):
             return
         origin = self.pose.position
         self.shots_fired_publisher.publish(Shot(origin, target))
+        
+        marker = self.getFireMarker(origin, target)
+        self.marker_publisher.publish(marker)
+        self.can_fire = False
+        rospy.sleep(Tank.FIRE_COOLDOWN_SECS)
+        self.can_fire = True
+
+    def getFireMarker(self, origin, target):
         marker = Marker()
 
         # Frame ID on which the marker will be placed (see TF)
@@ -55,33 +66,18 @@ class Tank(object):
         marker.header.stamp = rospy.Time()
         
         # Namespace and ID for marker. Any marker sent with same namespace and id will overwrite old one
-        marker.ns = "my_marker"
-        marker.id = 0
+        marker.ns = self.namespace
+        marker.id = self.id
 
         marker.type = Marker.LINE_STRIP
-
-        # Marker action: ADD DELETE DELETEALL
         marker.action = Marker.ADD
-
-        # Marker pose
         marker.pose.position = Point(0, 0, 0)
         marker.pose.orientation = Quaternion(0, 0, 0, 1)
-
-        # Line length
-        marker.scale.x = 0.03
-
-        marker.points = []
-        marker.points.append(origin)
-        marker.points.append(target)
-
-        # Color
+        marker.scale.x = 0.03 # line width
+        marker.points = [origin, target]
         marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)
-
-        marker.lifetime = rospy.Duration()
-        
-        self.marker_publisher.publish(marker)
-        rospy.loginfo("pew")
-
+        marker.lifetime = rospy.Duration(nsecs=500_000_000)
+        return marker
 
 
 class GameManager(object):
@@ -152,7 +148,6 @@ class GameManager(object):
 
         # publish detected bots to right topic
         self._detected_robot_publishers[scan_tank].publish(detected_bots)
-
 
         # broadcast transforms
         self.tf2_br.sendTransform(transforms)
