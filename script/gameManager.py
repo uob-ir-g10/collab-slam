@@ -44,7 +44,7 @@ class Tank(object):
         self.cmd_vel_publisher = rospy.Publisher(f"{namespace}/cmd_vel", Twist, queue_size=1)
         self.last_scan = None
         self._base_scan_subscriber = rospy.Subscriber(
-            f"/{namespace}/base_scan", LaserScan, self._base_scan_callback, queue_size=0)
+            f"/{namespace}/base_scan", LaserScan, self._base_scan_callback, queue_size=1)
         rospy.logdebug("Waiting for map...")
         self.mapinfo = rospy.wait_for_message(f"{namespace}/map", OccupancyGrid).info
 
