@@ -9,10 +9,9 @@ that are in the laser scan range everytime robot_i executes a scan
 """
 
 import rospy
-from typing import List
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Point, PoseArray, TransformStamped, Quaternion
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, PoseArray, TransformStamped, Quaternion, Twist, Vector3
+from nav_msgs.msg import Odometry, OccupancyGrid
 from std_msgs.msg import ColorRGBA
 from socspioneer.msg import Shot
 import math
@@ -37,13 +36,23 @@ class Tank(object):
         self._ground_truth_poses_subscriber = rospy.Subscriber(
                 f"/{namespace}/base_pose_ground_truth", Odometry, self._ground_truth_pose_callback)
 
+        # Firing mechanics
         self.shots_fired_publisher = rospy.Publisher(f"{namespace}/shots_fired", Shot, queue_size=0)
         self.marker_publisher = rospy.Publisher("visualization_marker", Marker, queue_size=0)
 
-    
+        # Navigation
+        self.cmd_vel_publisher = rospy.Publisher(f"{namespace}/cmd_vel", Twist, queue_size=1)
+        self.last_scan = None
+        self._base_scan_subscriber = rospy.Subscriber(
+            f"/{namespace}/base_scan", LaserScan, self._base_scan_callback, queue_size=0)
+        rospy.logdebug("Waiting for map...")
+        self.mapinfo = rospy.wait_for_message(f"{namespace}/map", OccupancyGrid).info
+
     def _ground_truth_pose_callback(self, odom):
         self.pose = odom.pose.pose
 
+    def _base_scan_callback(self, scan):
+        self.last_scan = scan
 
     def fire(self, target: Point):
         if not self.can_fire:
@@ -57,6 +66,9 @@ class Tank(object):
         self.can_fire = False
         rospy.sleep(Tank.FIRE_COOLDOWN_SECS)
         self.can_fire = True
+    
+    def move(self, move_cmd: Twist):
+        self.cmd_vel_publisher.publish(move_cmd)
 
     def getFireMarker(self, origin, target):
         marker = Marker()
@@ -97,6 +109,15 @@ class GameManager(object):
             self._laser_subscriber = rospy.Subscriber(
                 f"/{tank_ns}/base_scan", LaserScan, self._laser_callback, tank, queue_size=1)
 
+    def run(self):
+        while not rospy.is_shutdown():            
+            for tank in self.all_tanks:
+                # Tank AI
+                move_cmd = Twist()
+                move_cmd.linear = Vector3(0.0, 0.0, 0.0)
+                move_cmd.angular = Vector3(0.0, 0.0, 1.0)
+                scan_info = tank.last_scan
+                tank.move(move_cmd)
     
     def _laser_callback(self, scan, scan_tank):
         """
@@ -170,4 +191,8 @@ if __name__ == '__main__':
     # --- Main Program  ---
     rospy.init_node("game_manager")
     node = GameManager(2)
-    rospy.spin()
+
+    try:
+        node.run()
+    except Exception as e:
+        print(e)
