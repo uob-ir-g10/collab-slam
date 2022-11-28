@@ -1,0 +1,4 @@
+<launch>
+<node name="nav" pkg="collab-slam" type="nav.py" respawn="true" output="log"/>
+
+</launch>
