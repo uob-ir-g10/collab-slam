@@ -8,17 +8,81 @@ And publishes the poses of detected robots to `/robot_i/detected_robots`,
 that are in the laser scan range everytime robot_i executes a scan
 """
 
-from typing import List
 import rospy
-from geometry_msgs.msg import PoseArray, TransformStamped
+from typing import List
 from sensor_msgs.msg import LaserScan
-from tank import Tank
+from geometry_msgs.msg import Point, PoseArray, TransformStamped, Quaternion
+from nav_msgs.msg import Odometry
+from std_msgs.msg import ColorRGBA
+from socspioneer.msg import Shot
 import math
 import tf2_ros
 import tf_conversions
+from visualization_msgs.msg import Marker
 
-class RobotDetectionNode(object):
-    def __init__(self, tanks: List[Tank], detector_tanks=None):
+
+class Tank(object):
+    next_id = 0
+    FIRE_COOLDOWN_SECS = 5
+
+    def __init__(self, namespace, can_fire = True):
+        self.namespace = namespace
+        self.id = Tank.next_id
+        Tank.next_id += 1
+        self.can_fire = can_fire
+        self.health = 100
+
+        # Continuously update own pose based on published ground_truth information
+        self.pose = None
+        self._ground_truth_poses_subscriber = rospy.Subscriber(
+                f"/{namespace}/base_pose_ground_truth", Odometry, self._ground_truth_pose_callback)
+
+        self.shots_fired_publisher = rospy.Publisher(f"{namespace}/shots_fired", Shot, queue_size=0)
+        self.marker_publisher = rospy.Publisher("visualization_marker", Marker, queue_size=0)
+
+    
+    def _ground_truth_pose_callback(self, odom):
+        self.pose = odom.pose.pose
+
+
+    def fire(self, target: Point):
+        if not self.can_fire:
+            rospy.logerr(f"Tank {self.namespace} tried firing, but it doesn't have the capability to")
+            return
+        origin = self.pose.position
+        self.shots_fired_publisher.publish(Shot(origin, target))
+        
+        marker = self.getFireMarker(origin, target)
+        self.marker_publisher.publish(marker)
+        self.can_fire = False
+        rospy.sleep(Tank.FIRE_COOLDOWN_SECS)
+        self.can_fire = True
+
+    def getFireMarker(self, origin, target):
+        marker = Marker()
+
+        # Frame ID on which the marker will be placed (see TF)
+        marker.header.frame_id = "map"
+        marker.header.stamp = rospy.Time()
+        
+        # Namespace and ID for marker. Any marker sent with same namespace and id will overwrite old one
+        marker.ns = self.namespace
+        marker.id = self.id
+
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+        marker.pose.position = Point(0, 0, 0)
+        marker.pose.orientation = Quaternion(0, 0, 0, 1)
+        marker.scale.x = 0.03 # line width
+        marker.points = [origin, target]
+        marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)
+        marker.lifetime = rospy.Duration(nsecs=500_000_000)
+        return marker
+
+
+class GameManager(object):
+    def __init__(self, num_robots, detector_tanks=None):
+        tanks = [Tank(f"robot_{i}") for i in range(num_robots)]
         self.tf2_br = tf2_ros.TransformBroadcaster()
 
         if detector_tanks is None:
@@ -32,6 +96,7 @@ class RobotDetectionNode(object):
             # unsure about queue_size=1
             self._laser_subscriber = rospy.Subscriber(
                 f"/{tank_ns}/base_scan", LaserScan, self._laser_callback, tank, queue_size=1)
+
     
     def _laser_callback(self, scan, scan_tank):
         """
@@ -64,6 +129,7 @@ class RobotDetectionNode(object):
             scanDistance = scan.ranges[int((angleTo - scan.angle_min) // scan.angle_increment)]
             if distanceTo < scanDistance and distanceTo < scan.range_max:
                 detected_bots.poses.append(tank.pose)
+                scan_tank.fire(tank.pose.position)
 
                 # broadcast a transform from this robot's base_link toward the other robot it sees
                 t = TransformStamped()
@@ -102,7 +168,6 @@ def getHeading(q):
 
 if __name__ == '__main__':
     # --- Main Program  ---
-    rospy.init_node("robot_detector")
-    tanks = [Tank("robot_0"), Tank("robot_1")]
-    node = RobotDetectionNode(tanks)
+    rospy.init_node("game_manager")
+    node = GameManager(2)
     rospy.spin()
