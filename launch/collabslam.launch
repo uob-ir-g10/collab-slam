@@ -14,10 +14,10 @@
     </include>
 
     <!-- map merging -->
-    <node name="map_merge" pkg="multirobot_map_merge" type="map_merge">
+    <!-- <node name="map_merge" pkg="multirobot_map_merge" type="map_merge">
         <param name="robot_namespace" value="robot_" />
         <param name="known_init_poses" value="false" />
-    </node>
+    </node> -->
 
     <!-- start game -->
     <node name="game_manager" pkg="socspioneer" type="gameManager.py"/>
