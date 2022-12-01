@@ -1,0 +1,6 @@
+image: custom_medium.pgm
+resolution: 0.150000
+origin: [0, 0, 0.000000]
+negate: 0
+occupied_thresh: 0.25
+free_thresh: 0.196
