@@ -144,11 +144,11 @@ class GameManager(object):
                     if distance_forward < 0.3:
                         move_cmd.linear = Vector3(-0.5, 0.0, 0.0)
                         move_cmd.angular = Vector3(0.0, 0.0, 1.0)
-                        tank.move_cycles = 5
+                        tank.move_cycles = 8
                     elif not tank.tried_backward:
                         move_cmd.linear = Vector3(-0.5, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 0.0)
-                        tank.move_cycles = 5
+                        move_cmd.angular = Vector3(0.0, 0.0, 1.0)
+                        tank.move_cycles = 8
                         tank.tried_backward = True
                     else:
                         move_cmd.linear = Vector3(0.5, 0.0, 0.0)
@@ -156,7 +156,7 @@ class GameManager(object):
                         tank.move_cycles = 5
                         tank.tried_backward = False
 
-                elif distance_left < 0.6 and distance_right < 0.6:
+                elif distance_left < 1 and distance_right < 1:
                     # stuck in cubby
                     if distance_forward < 2:
                         move_cmd.linear = Vector3(0.0, 0.0, 0.0)
