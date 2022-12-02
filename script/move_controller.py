@@ -37,24 +37,28 @@ class Controller:
     def run(self):
         rospy.loginfo("running started")
         op = 0
+        last = 0
         while True:
             if op == 0:
-                rospy.loginfo("Exploring local area...")
-                self.explore()
-                rospy.loginfo("Navigating...")
-                goal = self.get_new_goal()
-            if op == 1 or op == 2:
-                rospy.logwarn("Stuck while trying to move, attempting to unstuck...")
-                self.explore()
-                goal = self.get_new_goal()
+                if last == 0:
+                    rospy.loginfo("Navigating...")
+                    goal = self.get_new_goal()
+                    last = 1
+                else:
+                    rospy.loginfo("Exploring local area...")
+                    self.explore()
+                    last = 0
 
             for i in range(5):
                 op = self.execute_movement(goal)
                 if op != -1:
+                    last = 1
                     break
-                rospy.logwarn("Couldn't find path to goal, trying again...")
+                rospy.logwarn(f"Couldn't find path to goal, trying again...code: {op}")
                 op = 0
-            rospy.logwarn("Couldn't find path, Exploring...")
+            if i == 4:
+                rospy.logwarn("Couldn't find path, Exploring...")
+                last = 1
 
     def get_new_goal(self):
         goal = Twist()  # For now, joe's algo will come here
@@ -116,8 +120,6 @@ class Controller:
                     break
                 rotate = Twist()
                 rotate.angular.z = abs(diff) * rotation_dir
-                if self.immobile:
-                    return 1
                 self.move(rotate)
 
             while True:
@@ -128,8 +130,6 @@ class Controller:
                     break
                 forwards = Twist()
                 forwards.linear.x = (diff_x + diff_y)/2
-                if self.immobile:
-                    return 2
                 self.move(forwards)
         return 0
 
