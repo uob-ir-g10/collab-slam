@@ -1,3 +1,6 @@
+import rospy
+
+
 class Node:
     def __init__(self, coord, parent, start, goal, occupancy, width):
         self.map_width = width
@@ -68,8 +71,8 @@ class Node:
             self.f = self.h+self.g
 
 
-def find_path(grid, start, goal, width):
-
+def find_path(grid, start, goal, width, cost):
+    #rospy.loginfo(f"finding path to {get_world_coord(get_2D(goal, width))}")
     grid = list(grid)
     open_nodes = []
     closed = []
@@ -84,7 +87,7 @@ def find_path(grid, start, goal, width):
         closed.append(current)
         neighbours = find_neighbours(current, grid, width)
         for neighbour in neighbours:
-            surrounding_walls = check_neighbours(neighbour, grid, width, 4)
+            surrounding_walls = check_neighbours(neighbour, grid, width, cost, 100)
             if surrounding_walls:
                 #[print(f"{get_world_coord(get_2D(i, width))} wall found") for i in surrounding_walls]
                 costmap_coords = get_costmap_coords(surrounding_walls, width, 4)
@@ -171,22 +174,22 @@ def translate_path(path, width):
 
     return merged
 
-def check_neighbours(cell, grid, width, layers):
+def check_neighbours(cell, grid, width, layers, value):
     current_layer = find_neighbours(cell, grid, width)
     if layers == 1:
-        walls = []
+        hits = []
         for node in current_layer:
-            if grid[node.coord] == 100:
-                walls.append(node.coord)
-        return walls
+            if grid[node.coord] == value:
+                hits.append(node.coord)
+        return hits
     else:
-        all_walls = []
+        all_hits = []
         for cell in current_layer:
-            if grid[cell.coord] == 100:
-                all_walls += [cell.coord] + check_neighbours(cell, grid, width, layers-1)
+            if grid[cell.coord] == value:
+                all_hits += [cell.coord] + check_neighbours(cell, grid, width, layers-1, value)
             else:
-                all_walls += check_neighbours(cell, grid, width, layers-1)
-        return sorted(list(set(all_walls)))
+                all_hits += check_neighbours(cell, grid, width, layers-1, value)
+        return sorted(list(set(all_hits)))
 
 
 def get_surrounding(coord, width):
@@ -252,7 +255,7 @@ if __name__ == "__main__":
     test_stuff = [100, 0, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 100, 0,   100, 100, 0, 100, 0, 100, 0, 0, 100, 100, 0]
     test2 = [0 for i in range(7)] + [100] + [0 for i in range(28)]
 
-    path = find_path(test_grid_1d, 0, 19, 5)
+    path = find_path(test_grid_1d, 0, 19, 5, 4)
     print(path)
     traversed = traverse_path(path, [])
     print(traversed)

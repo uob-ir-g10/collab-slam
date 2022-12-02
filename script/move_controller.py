@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import random
 
 import rospy
 import traceback
@@ -10,6 +11,8 @@ from sensor_msgs.msg import LaserScan
 
 class Controller:
     def __init__(self, namespace):
+        self.goals = [[1,3], [-2, 2.5], [1,3], [0,4], [0, -2], [-1, -2.5], [-4, -3]]
+        self.current_goal = 0
         self.namespace = namespace
         self.cmd_vel_publisher = rospy.Publisher(f"{namespace}/cmd_vel", Twist, queue_size=1)
 
@@ -61,9 +64,25 @@ class Controller:
                 last = 1
 
     def get_new_goal(self):
-        goal = Twist()  # For now, joe's algo will come here
+        goal = Twist()
         goal.linear.x = 1
         goal.linear.y = 3
+        return goal
+        grid = rospy.wait_for_message(f"/{self.namespace}/map", OccupancyGrid).data
+
+        coord_2D = get_grid_coord(self.pose.position, self.grid_origin, self.grid_res)
+        coord_1D = get_1D(*coord_2D, self.grid_dim[0])
+
+        unknowns = check_neighbours(Node(coord_1D, None, 0, 0, 0, self.grid_dim[0]), grid, self.grid_dim[0], 4, -1)
+        random_choice = unknowns[random.randint(0, len(unknowns))]
+
+        choice_grid_coords = get_2D(random_choice, self.grid_dim[0])
+
+        goal.linear.x = get_world_coord(choice_grid_coords)[0]
+        goal.linear.y = get_world_coord(choice_grid_coords)[1]
+        #goal.linear.x = self.goals[self.current_goal][0]
+        #goal.linear.y = self.goals[self.current_goal][1]
+        #self.current_goal += 1
         return goal
 
     def execute_movement(self, goal):
@@ -77,9 +96,11 @@ class Controller:
         goal_1D = round(get_1D(*goal, self.grid_dim[0]))
         grid_1D = rospy.wait_for_message(f"/{self.namespace}/map", OccupancyGrid).data
 
-        goal = find_path(grid_1D, grid_coord_1D, goal_1D, self.grid_dim[0])
+        goal = find_path(grid_1D, grid_coord_1D, goal_1D, self.grid_dim[0], 4)
         if not goal:
-            return -1
+            goal = find_path(grid_1D, grid_coord_1D, goal_1D, self.grid_dim[0], 3)
+            if not goal:
+                return -1
         # translate to waypoints
         vectors_2D = translate_path(traverse_path(goal, []), self.grid_dim[0])
         real_vectors = [get_world_coord(vector, self.grid_res) for vector in vectors_2D]
@@ -93,21 +114,19 @@ class Controller:
             waypoints[e][0] = previous[0] + point[0]
             waypoints[e][1] = previous[1] + point[1]
             previous = point
-
+        #rospy.loginfo(waypoints)
         for e, point in enumerate(waypoints):
             starting_point = self.pose.position
             x = point[0] - starting_point.x
             y = point[1] - starting_point.y
 
             if x != 0:
-                angle = math.atan(y/x)
+                angle = math.atan2(y, x)
             else:
                 if y <0:
                     angle = -(math.pi / 2)
                 else:
                     angle = (math.pi / 2)
-            if starting_point.x > point[0]:
-                angle += math.pi
             #rospy.loginfo(f"{angle} is what we are looking for at{x} {y}")
             if angle < getHeading(self.pose.orientation):
                 rotation_dir = -1
