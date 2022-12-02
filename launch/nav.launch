@@ -1,0 +1,7 @@
+<launch>
+    <arg name="robot_name" />
+
+    <node name="$(arg robot_name)_nav" pkg="socspioneer" type="move_controller.py">
+        <param name="namespace" value="$(arg robot_name)" />
+    </node>
+</launch>

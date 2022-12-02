@@ -18,7 +18,7 @@ define topurg ranger
 
 define pioneer position
 (
-  size [0.45 0.45 0.25]
+  size [0.35 0.35 0.25]
   origin [0 0 0 0]
   gui_nose 1
   drive "diff"

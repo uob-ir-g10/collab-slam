@@ -19,7 +19,6 @@ import tf2_ros
 import tf_conversions
 from visualization_msgs.msg import Marker
 
-
 class Tank(object):
     next_id = 0
     FIRE_COOLDOWN_SECS = 5
@@ -30,9 +29,6 @@ class Tank(object):
         Tank.next_id += 1
         self.can_fire = can_fire
         self.health = 100
-        self.immobile = False
-        self.move_cycles = 0
-        self.tried_backward = False
         self.attached = False
 
         # Continuously update own pose based on published ground_truth information
@@ -73,12 +69,10 @@ class Tank(object):
         
         marker = self.getFireMarker(origin, target)
         self.marker_publisher.publish(marker)
-        # self.can_fire = False
-        # rospy.sleep(Tank.FIRE_COOLDOWN_SECS)
-        # self.can_fire = True
-    
-    def move(self, move_cmd: Twist):
-        self.cmd_vel_publisher.publish(move_cmd)
+        self.can_fire = False
+        rospy.sleep(Tank.FIRE_COOLDOWN_SECS)
+        self.can_fire = True
+
 
     def getFireMarker(self, origin, target):
         marker = Marker()
@@ -120,70 +114,7 @@ class GameManager(object):
                 f"/{tank_ns}/base_scan", LaserScan, self._laser_callback, tank, queue_size=1)
 
     def run(self):
-        r = rospy.Rate(10) # 10hz
-        while not rospy.is_shutdown():
-            for tank in self.all_tanks:
-                if tank.move_cycles > 0:
-                    tank.move_cycles -= 1
-                    continue
-                elif tank.move_cycles == 0:
-                    tank.move_cycles -= 1
-                    tank.immobile = False
-                # Tank AI
-                distance_left = getScanDistance(tank.last_scan, -math.pi/3)
-                distance_right = getScanDistance(tank.last_scan, math.pi/3)
-                distance_forward = getScanDistance(tank.last_scan, 0)
-                distance_side = (tank.last_scan.ranges[0], tank.last_scan.ranges[-1])
-
-
-                move_cmd = Twist() 
-
-                # stuck against wall
-                if tank.immobile:
-                    # stuck against pole
-                    if distance_forward < 0.3:
-                        move_cmd.linear = Vector3(-0.5, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 1.0)
-                        tank.move_cycles = 5
-                    elif not tank.tried_backward:
-                        move_cmd.linear = Vector3(-0.5, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 0.0)
-                        tank.move_cycles = 5
-                        tank.tried_backward = True
-                    else:
-                        move_cmd.linear = Vector3(0.5, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 0.0)
-                        tank.move_cycles = 5
-                        tank.tried_backward = False
-
-                elif distance_left < 0.6 and distance_right < 0.6:
-                    # stuck in cubby
-                    if distance_forward < 2:
-                        move_cmd.linear = Vector3(0.0, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 1.0)
-                        tank.move_cycles = 10
-                        rospy.logwarn(f"{tank.namespace} stuck in cubby")
-                    # inside narrow corridor
-                    elif distance_left < distance_right:
-                        move_cmd.linear = Vector3(0.25, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, 1.0)
-                    else:
-                        move_cmd.linear = Vector3(0.25, 0.0, 0.0)
-                        move_cmd.angular = Vector3(0.0, 0.0, -1.0)
-                elif distance_left < 0.6:
-                    move_cmd.linear = Vector3(0.0, 0.0, 0.0)
-                    move_cmd.angular = Vector3(0.0, 0.0, 1.0)
-                elif distance_right < 0.6:
-                    move_cmd.linear = Vector3(0.0, 0.0, 0.0)
-                    move_cmd.angular = Vector3(0.0, 0.0, -1.0)
-                else:
-                    move_cmd.linear = Vector3(0.5, 0.0, 0.0)
-                    move_cmd.angular = Vector3(0.0, 0.0, 0.0)
-
-                tank.move(move_cmd)
-
-            r.sleep()
-    
+        rospy.spin()
     def _laser_callback(self, scan, scan_tank):
         """
         Laser received. Check if any other robots are within this robot's view cone,
