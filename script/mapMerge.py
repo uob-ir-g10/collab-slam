@@ -220,11 +220,11 @@ class MapMergeNode(object):
                     best_image = tm2
                     best_agreement = agreement
 
-                dst = cv2.addWeighted(img1, 0.5, tm2, 0.5, 0.0)
-                cv2.imwrite(f"{w}.jpg", dst)
+                # dst = cv2.addWeighted(img1, 0.5, tm2, 0.5, 0.0)
+                # cv2.imwrite(f"{w}.jpg", dst)
         
         dst = cv2.addWeighted(img1, 0.5, best_image, 0.5, 0.0)
-        cv2.imwrite(f"{best_w:.4f}_{agreement}.png", dst)
+        cv2.imwrite(f"merged_map_w_{best_w:.4f}.png", dst)
         # cv2.imshow('image', dst)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
