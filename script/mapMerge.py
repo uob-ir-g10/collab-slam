@@ -28,10 +28,12 @@ def shiftColors(a):
     return a
 
 
-
 def houghSpectrum(gray_img):
     # Apply edge detection method on the image
-    edges = cv2.Canny(gray_img, 50, 150, apertureSize=3)
+    walls = cv2.threshold(gray_img, 206, 255, cv2.THRESH_BINARY)[1]
+
+    edges = cv2.Canny(walls, 50, 150, apertureSize=3)
+
 
     # This returns an array of r and theta values
     lines = cv2.HoughLines(edges, R_RESOLUTION, THETA_RESOLUTION, 50)
@@ -82,7 +84,9 @@ def xySpec(occ_map):
 
     for x in range(w):
         for y in range(h):
-            occupied = int(occ_map[y, x, 0] == 255)
+            occupied = int(occ_map[y, x, 0] < 205)
+            if occ_map[y, x, 0] not in [0, 205, 255]:
+                print(occ_map[y,x,0])
             xspec[x] += occupied  
             yspec[y] += occupied  
     
@@ -95,7 +99,7 @@ def moveImg(img, angle, dx, dy):
     rotate_matrix = np.vstack([rotate_matrix, [0.0, 0.0, 1.0]])
     trans_matrix = np.array([[1.0, 0.0, dx], [0.0, 1.0, dy], [0.0, 0.0, 1.0]])
     matrix = trans_matrix @ rotate_matrix
-    rotated_image = cv2.warpPerspective(src=img, M=matrix, dsize=(width, height))
+    rotated_image = cv2.warpPerspective(src=img, M=matrix, dsize=(width, height), flags=cv2.INTER_NEAREST)
     return rotated_image, matrix
 
 def acceptanceIndex(img1, img2):
@@ -121,7 +125,7 @@ class MapMergeNode(object):
     def __init__(self, robot_names, map_topic_name="map"):
         self.tf2_br = tf2_ros.TransformBroadcaster()
         self.tfBuffer = tf2_ros.Buffer()
-        self.listener = tf2_ros.TransformListener(self.tfBuffer)
+        # self.listener = tf2_ros.TransformListener(self.tfBuffer)
         self.suggested_angle = 0
 
         self.map_subscribers = []
@@ -136,7 +140,7 @@ class MapMergeNode(object):
 
         rospy.sleep(2)
         self.merge_maps(None)
-        rospy.Timer(rospy.Duration(20), self.merge_maps)
+        #rospy.Timer(rospy.Duration(20), self.merge_maps)
     
     def _detect_callback(self, poses, robot_name):
         if '0' in robot_name:
@@ -216,8 +220,8 @@ class MapMergeNode(object):
                     best_image = tm2
                     best_agreement = agreement
 
-                # dst = cv2.addWeighted(img1, 0.5, tm2, 0.5, 0.0)
-                # cv2.imwrite(f"{w}.jpg", dst)
+                dst = cv2.addWeighted(img1, 0.5, tm2, 0.5, 0.0)
+                cv2.imwrite(f"{w}.jpg", dst)
         
         dst = cv2.addWeighted(img1, 0.5, best_image, 0.5, 0.0)
         cv2.imwrite(f"{best_w:.4f}_{agreement}.png", dst)
