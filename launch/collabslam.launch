@@ -3,7 +3,7 @@
 
     <!-- start rviz and stage -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find socspioneer)/config/gmapping.rviz"/>
-    <node name="stage" pkg="stage_ros" type="stageros" args="$(find socspioneer)/data/custom.world"/>
+    <node name="stage" pkg="stage_ros" type="stageros" args="$(find socspioneer)/data/meeting.world"/>
 
     <!-- start slam on robot_0, the name coming from stageros's meeting.world -->
     <include file="$(find socspioneer)/launch/slam.launch">
